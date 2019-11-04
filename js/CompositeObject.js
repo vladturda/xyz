@@ -5,7 +5,7 @@ var CompositeObject = function( components ) {
   this.edges = [];
   this.faces = [];
 
-  this.projection = [];
+  this.handles = [];
 
   this.addObject = function( object = new Object3() ) {
     this.components.push( object );
@@ -13,35 +13,38 @@ var CompositeObject = function( components ) {
     var v_i = this.vertices.length;
 
     for (var v in object.vertices) {
-      this.vertices.push( new Point( object.vertices[v].x,
-                                     object.vertices[v].y,
-                                     object.vertices[v].z ) );
+      this.vertices.push( object.vertices[v] );
+    }
   
-      this.projection.push( new Point( object.projection[v].x,
-                                       object.projection[v].y,
-                                       object.projection[v].z ) );
+    for (var h in object.handles) {
+      this.handles.push( object.handles[h] );
     }
   
     for (var e in object.edges) {
-      var v_a = object.vertices.indexOf( object.edges[e].vertices[0] ) + v_i;
-      var v_b = object.vertices.indexOf( object.edges[e].vertices[1] ) + v_i;
-  
-      this.edges.push( { vertices: [ this.vertices[v_a], this.vertices[v_b] ],
-                         projection: [ this.projection[v_a], this.projection[v_b] ] } );
+      var vertex_array = [];
+
+      for (var e_v in object.edges[e].vertices) {
+        var v = object.vertices.indexOf( object.edges[e].vertices[e_v] ) + v_i;
+        vertex_array.push( this.vertices[v] );
+      }
+
+      this.edges.push( { vertices: vertex_array, 
+                         quadratic: object.edges[e].quadratic, 
+                         shader: object.edges[e].shader } );
     }
   
     for (var f in object.faces) {
       var vertex_array = [];
-      var projection_array = [];
   
       for (var f_v in object.faces[f].vertices) {
         var v = object.vertices.indexOf( object.faces[f].vertices[f_v] ) + v_i;
         vertex_array.push(this.vertices[v]);
-        projection_array.push(this.projection[v]);
       }
   
       this.faces.push( { vertices: vertex_array, 
-                         projection: projection_array,
+                         quadratic: object.faces[f].quadratic,
+                         stroke: object.faces[f].stroke,
+                         scan: object.faces[f].scan,
                          shader: object.faces[f].shader } );
     }
   };
@@ -49,4 +52,26 @@ var CompositeObject = function( components ) {
   for (var o in components) {
     this.addObject( components[o] );
   }
+
+  this.sortFaces = function() {
+    this.faces.sort(function(a, b) {
+      a_max = Math.max(a.vertices[0].projection.z, a.vertices[1].projection.z, a.vertices[2].projection.z, a.vertices[3].projection.z);
+      b_max = Math.max(b.vertices[0].projection.z, b.vertices[1].projection.z, b.vertices[2].projection.z, b.vertices[3].projection.z);
+      return b_max - a_max; 
+    });
+  };
+
+  this.sortEdges = function() {
+    this.edges.sort(function(a, b) {
+      a_max = Math.max(a.vertices[0].projection.z, a.vertices[1].projection.z);
+      b_max = Math.max(b.vertices[0].projection.z, b.vertices[1].projection.z);
+      return b_max - a_max; 
+    });
+  };
+
+  this.sortVertices = function() {
+    this.vertices.sort(function(a, b) {
+      return b.projection.z - a.projection.z; 
+    });
+  };
 };
